@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FFCL Playoff Bracket</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Roboto+Condensed:wght@300;400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface2: #21262d;
+  --border: #30363d;
+  --gold: #c9a227;
+  --gold2: #e6b800;
+  --text: #e6edf3;
+  --dim: #8b949e;
+  --green: #238636;
+  --green2: #2ea043;
+  --champgold: #ffd700;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Roboto Condensed', sans-serif;
+  min-height: 100vh;
+}
+
+/* HEADER */
+header {
+  background: linear-gradient(135deg, #0a0d12 0%, #161b2e 50%, #0a0d12 100%);
+  border-bottom: 2px solid var(--gold);
+  padding: 22px 40px;
+  text-align: center;
+  position: relative;
+}
+header::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(201,162,39,0.15) 0%, transparent 65%);
+  pointer-events: none;
+}
+header h1 {
+  font-family: 'Oswald', sans-serif;
+  font-size: clamp(22px, 3.5vw, 38px);
+  font-weight: 700; letter-spacing: 4px;
+  text-transform: uppercase; color: var(--gold);
+  text-shadow: 0 0 30px rgba(201,162,39,0.5);
+}
+header p { color: var(--dim); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; margin-top: 5px; }
+
+/* READ-ONLY BANNER */
+#readonly-banner {
+  display: none;
+  background: linear-gradient(90deg, #1a1200, #2a1e00, #1a1200);
+  border-bottom: 1px solid rgba(201,162,39,0.4);
+  padding: 10px 20px;
+  text-align: center;
+  font-family: 'Oswald', sans-serif;
+  font-size: 12px; letter-spacing: 2px;
+  color: var(--gold); text-transform: uppercase;
+}
+#readonly-banner span { opacity: 0.65; font-size: 11px; }
+
+/* SETUP */
+#setup { max-width: 660px; margin: 44px auto; padding: 0 20px; }
+.setup-title {
+  font-family: 'Oswald', sans-serif;
+  font-size: 18px; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--gold);
+  text-align: center; margin-bottom: 22px;
+}
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin-bottom: 24px; }
+.seed-row {
+  display: flex; align-items: center;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 10px 13px; gap: 10px;
+  transition: border-color 0.2s;
+}
+.seed-row:focus-within { border-color: var(--gold); }
+.seed-num {
+  font-family: 'Oswald', sans-serif; font-size: 17px;
+  font-weight: 700; color: var(--gold); min-width: 22px; text-align: center;
+}
+.seed-row input {
+  background: none; border: none; outline: none;
+  color: var(--text); font-family: 'Roboto Condensed', sans-serif;
+  font-size: 14px; width: 100%;
+}
+.seed-row input::placeholder { color: var(--dim); }
+.btn-go {
+  display: block; width: 100%;
+  background: var(--gold); color: #000; border: none; padding: 13px;
+  font-family: 'Oswald', sans-serif; font-size: 17px; font-weight: 700;
+  letter-spacing: 3px; text-transform: uppercase;
+  border-radius: 6px; cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+.btn-go:hover { background: var(--gold2); transform: translateY(-1px); }
+
+/* BRACKET PANEL */
+#bracket { display: none; padding: 16px 16px 60px; }
+.controls {
+  display: flex; gap: 10px; justify-content: center;
+  flex-wrap: wrap; margin-bottom: 18px;
+}
+.btn {
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); padding: 8px 20px;
+  font-family: 'Oswald', sans-serif; font-size: 13px;
+  letter-spacing: 2px; text-transform: uppercase;
+  border-radius: 5px; cursor: pointer; transition: all 0.18s;
+}
+.btn:hover { border-color: var(--gold); color: var(--gold); }
+.btn.gold { background: var(--gold); color: #000; border-color: var(--gold); }
+.btn.gold:hover { background: var(--gold2); }
+.scroll-note { text-align: center; color: var(--dim); font-size: 11px; letter-spacing: 1px; margin-bottom: 10px; }
+
+/* BRACKET LAYOUT */
+.b-wrap { overflow-x: auto; padding-bottom: 10px; }
+.b-flex { display: flex; align-items: stretch; min-width: 920px; padding: 10px 20px; }
+.r-col { display: flex; flex-direction: column; justify-content: space-around; flex-shrink: 0; }
+.r-col.qf, .r-col.sf, .r-col.final { width: 185px; }
+
+/* MATCHUP */
+.matchup { display: flex; flex-direction: column; }
+.game-name {
+  font-family: 'Oswald', sans-serif; font-size: 9px;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--gold); opacity: 0.8; text-align: center; margin-bottom: 4px;
+}
+.slot {
+  display: flex; align-items: center;
+  width: 185px; height: 36px;
+  background: var(--surface); border: 1px solid var(--border);
+  padding: 0 9px; gap: 7px;
+  transition: background 0.15s, border-color 0.15s;
+  user-select: none;
+}
+.slot.top { border-radius: 4px 4px 0 0; }
+.slot.bot { border-radius: 0 0 4px 4px; border-top: none; }
+.slot.active { cursor: pointer; }
+.slot.active:hover { background: var(--surface2); border-color: var(--gold); }
+.slot.readonly { cursor: default; }
+.slot.win { background: var(--green); border-color: var(--green2); }
+.slot.win .snum { color: var(--champgold); }
+.slot.lose { opacity: 0.32; }
+.slot.tbd { pointer-events: none; opacity: 0.35; cursor: default; }
+.snum {
+  font-family: 'Oswald', sans-serif; font-size: 13px;
+  font-weight: 600; color: var(--gold); min-width: 16px; text-align: center;
+}
+.sname { font-size: 13px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tbd-text { font-size: 12px; color: var(--dim); font-style: italic; }
+
+/* CONNECTOR */
+.conn-col { flex-shrink: 0; position: relative; }
+.conn-col svg { display: block; }
+
+/* CHAMPION */
+.champ-col {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  flex-shrink: 0; padding-left: 30px; min-width: 200px;
+}
+.champ-trophy { font-size: 36px; margin-bottom: 8px; filter: drop-shadow(0 0 12px gold); }
+.champ-label {
+  font-family: 'Oswald', sans-serif; font-size: 11px;
+  letter-spacing: 3px; text-transform: uppercase;
+  color: var(--champgold); text-align: center; margin-bottom: 10px;
+  text-shadow: 0 0 10px rgba(255,215,0,0.4);
+}
+.champ-box {
+  background: linear-gradient(135deg, #1c1600, #2d2400);
+  border: 2px solid var(--champgold); border-radius: 8px;
+  padding: 16px 26px; text-align: center; min-width: 175px;
+  animation: pulse 2.5s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 25px rgba(255,215,0,0.25), 0 0 50px rgba(255,215,0,0.08); }
+  50%      { box-shadow: 0 0 45px rgba(255,215,0,0.5),  0 0 90px rgba(255,215,0,0.18); }
+}
+.champ-box .cs { font-family:'Oswald',sans-serif; font-size:12px; color:var(--champgold); opacity:0.75; }
+.champ-box .cn { font-family:'Oswald',sans-serif; font-size:20px; font-weight:700; color:var(--champgold); margin-top:3px; text-shadow:0 0 18px rgba(255,215,0,0.6); }
+.champ-empty { opacity: 0.28; text-align: center; }
+.champ-empty .ce-icon { font-size:34px; margin-bottom:6px; }
+.champ-empty .ce-txt { font-family:'Oswald',sans-serif; font-size:10px; letter-spacing:2px; color:var(--dim); text-transform:uppercase; line-height:1.6; }
+
+/* TOAST */
+.toast {
+  position: fixed; bottom: 28px; left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--green); color: #fff;
+  padding: 10px 26px; border-radius: 6px;
+  font-family: 'Oswald', sans-serif; letter-spacing: 2px; font-size: 14px;
+  opacity: 0; transition: all 0.3s; pointer-events: none; z-index: 9999;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* MODALS */
+.overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.82); z-index: 1000;
+  align-items: center; justify-content: center;
+}
+.overlay.open { display: flex; }
+.modal {
+  background: var(--surface); border: 1px solid var(--gold);
+  border-radius: 10px; padding: 30px;
+  max-width: 460px; width: 92%;
+}
+.modal h3 {
+  font-family: 'Oswald', sans-serif; font-size: 17px;
+  letter-spacing: 2px; color: var(--gold);
+  text-transform: uppercase; margin-bottom: 6px;
+}
+.modal .sub { color: var(--dim); font-size: 13px; line-height: 1.7; margin-bottom: 20px; }
+.modal label {
+  display: block; font-family: 'Oswald', sans-serif;
+  font-size: 11px; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--dim); margin-bottom: 7px;
+}
+.modal input[type=text] {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 5px; color: var(--text);
+  font-family: 'Roboto Condensed', sans-serif; font-size: 15px;
+  padding: 10px 12px; outline: none; transition: border-color 0.2s;
+  margin-bottom: 18px;
+}
+.modal input[type=text]:focus { border-color: var(--gold); }
+.url-display {
+  display: none;
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 5px; color: var(--text);
+  font-family: monospace; font-size: 11px;
+  padding: 10px 12px; margin-bottom: 18px;
+  word-break: break-all; line-height: 1.5;
+}
+.modal-btns { display: flex; gap: 10px; justify-content: flex-end; align-items: center; }
+.btn-cancel {
+  background: none; border: none; color: var(--dim);
+  font-family: 'Oswald', sans-serif; font-size: 12px;
+  letter-spacing: 1px; cursor: pointer; padding: 8px 4px;
+  text-transform: uppercase; transition: color 0.2s; margin-right: auto;
+}
+.btn-cancel:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="main-title">FFCL Playoff Bracket</h1>
+  <p id="main-sub">Football Fusion College League &mdash; Pick Your Winners</p>
+</header>
+
+<div id="bracket-owner" style="display: none; text-align: center; padding: 12px 20px; background: linear-gradient(90deg, rgba(201,162,39,0.08), rgba(201,162,39,0.15), rgba(201,162,39,0.08)); border-bottom: 1px solid rgba(201,162,39,0.3);">
+  <span style="font-family: 'Oswald', sans-serif; font-size: 14px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold);" id="owner-name"></span><span style="font-family: 'Oswald', sans-serif; font-size: 14px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold);">'s Bracket</span>
+</div>
+
+<div id="readonly-banner">
+  👁&nbsp; View Only &nbsp;&mdash;&nbsp; <span>This bracket is locked. You are viewing someone else's picks.</span>
+</div>
+
+<!-- SETUP -->
+<div id="setup">
+  <p class="setup-title">Enter the 8 Teams</p>
+  <div class="grid2">
+    <div class="seed-row"><span class="seed-num">1</span><input id="t1" type="text" placeholder="Seed #1 Team" maxlength="28"></div>
+    <div class="seed-row"><span class="seed-num">2</span><input id="t2" type="text" placeholder="Seed #2 Team" maxlength="28"></div>
+    <div class="seed-row"><span class="seed-num">3</span><input id="t3" type="text" placeholder="Seed #3 Team" maxlength="28"></div>
+    <div class="seed-row"><span class="seed-num">4</span><input id="t4" type="text" placeholder="Seed #4 Team" maxlength="28"></div>
+    <div class="seed-row"><span class="seed-num">5</span><input id="t5" type="text" placeholder="Seed #5 Team" maxlength="28"></div>
+    <div class="seed-row"><span class="seed-num">6</span><input id="t6" type="text" placeholder="Seed #6 Team" maxlength="28"></div>
+    <div class="seed-row"><span class="seed-num">7</span><input id="t7" type="text" placeholder="Seed #7 Team" maxlength="28"></div>
+    <div class="seed-row"><span class="seed-num">8</span><input id="t8" type="text" placeholder="Seed #8 Team" maxlength="28"></div>
+  </div>
+  <button class="btn-go" onclick="launch()">Generate Bracket</button>
+</div>
+
+<!-- BRACKET -->
+<div id="bracket">
+  <div class="controls" id="edit-controls">
+    <button class="btn" onclick="editTeams()">← Edit Teams</button>
+    <button class="btn" onclick="resetPicks()">Reset Picks</button>
+    <button class="btn gold" onclick="openShareModal()">🔗 Share My Bracket</button>
+  </div>
+  <p class="scroll-note">← Scroll horizontally on smaller screens →</p>
+  <div class="b-wrap">
+    <div class="b-flex" id="b-flex"></div>
+  </div>
+</div>
+
+<!-- SHARE MODAL -->
+<div class="overlay" id="modal-share">
+  <div class="modal">
+    <h3>Share Your Bracket</h3>
+    <p class="sub">Enter your name to download your bracket as an image. Your name will appear on the bracket when shared.</p>
+    <label for="sharer-name">Your Name</label>
+    <input type="text" id="sharer-name" placeholder="e.g. Kileoz" maxlength="40">
+    <div id="capture-status" style="text-align: center; color: var(--dim); font-size: 12px; margin-top: 10px; display: none;">
+      <span>📸 Capturing bracket...</span>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeShareModal()">Cancel</button>
+      <button class="btn gold" id="btn-copy-image" onclick="copyAsImage()">💾 Download as Image</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────────
+const QF_SEEDS   = [[1,8],[4,5],[3,6],[2,7]];
+const GAME_NAMES = {
+  r0m0:'Peach Bowl', r0m1:'Rose Bowl', r0m2:'Sugar Bowl', r0m3:'Fiesta Bowl',
+  r1m0:'Cotton Bowl', r1m1:'Orange Bowl',
+  r2m0:'National Championship'
+};
+
+let T  = {};   // seed -> name
+let P  = { 0:[null,null,null,null], 1:[null,null], 2:[null] };
+let OWNER     = '';
+let READ_ONLY = false;
+
+// ── HELPERS ───────────────────────────────────────────────────────────────
+function teamName(s) { return T[s] || 'Team '+s; }
+
+function getSeeds(r, m) {
+  if (r === 0) return [...QF_SEEDS[m]];
+  if (r === 1) return [P[0][m*2] ?? null, P[0][m*2+1] ?? null];
+  if (r === 2) return [P[1][0]   ?? null, P[1][1]     ?? null];
+  return [null, null];
+}
+
+function pick(r, m, seed) {
+  if (READ_ONLY) return;
+  P[r][m] = seed;
+  if (r === 0) {
+    const sfm = Math.floor(m/2), sfS = getSeeds(1, sfm);
+    if (P[1][sfm] !== null && !sfS.includes(P[1][sfm])) { P[1][sfm]=null; P[2][0]=null; }
+  } else if (r === 1) {
+    const fS = getSeeds(2, 0);
+    if (P[2][0] !== null && !fS.includes(P[2][0])) P[2][0] = null;
+  }
+  render(); persist();
+}
+
+// ── SETUP ─────────────────────────────────────────────────────────────────
+function launch() {
+  for (let s=1; s<=8; s++) {
+    const v = document.getElementById('t'+s).value.trim();
+    T[s] = v || 'Team '+s;
+  }
+  P = { 0:[null,null,null,null], 1:[null,null], 2:[null] };
+  READ_ONLY = false;
+  render(); persist();
+}
+function editTeams() {
+  document.getElementById('bracket').style.display = 'none';
+  document.getElementById('setup').style.display   = 'block';
+}
+function resetPicks() {
+  P = { 0:[null,null,null,null], 1:[null,null], 2:[null] };
+  render(); persist();
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────
+function render() {
+  document.getElementById('setup').style.display   = 'none';
+  document.getElementById('bracket').style.display = 'block';
+
+  const titleEl  = document.getElementById('main-title');
+  const subEl    = document.getElementById('main-sub');
+  const banner   = document.getElementById('readonly-banner');
+  const ctrlEl   = document.getElementById('edit-controls');
+
+  if (READ_ONLY) {
+    titleEl.textContent  = OWNER ? OWNER + "'s Bracket" : 'FFCL Playoff Bracket';
+    subEl.textContent    = 'FFCL Playoff Bracket \u2014 View Only';
+    banner.style.display = 'block';
+    ctrlEl.style.display = 'none';
+  } else {
+    titleEl.textContent  = OWNER ? OWNER + "'s Bracket" : 'FFCL Playoff Bracket';
+    subEl.textContent    = 'Football Fusion College League \u2014 Pick Your Winners';
+    banner.style.display = 'none';
+    ctrlEl.style.display = 'flex';
+  }
+
+  const flex = document.getElementById('b-flex');
+  flex.innerHTML = '';
+
+  const MH = 185, QH = 4*MH;
+  flex.appendChild(makeRoundCol('qf',    0, 4, MH,   QH));
+  flex.appendChild(makeConnector(4, MH,   QH, 50));
+  flex.appendChild(makeRoundCol('sf',    1, 2, MH*2, QH));
+  flex.appendChild(makeConnector(2, MH*2, QH, 50));
+  flex.appendChild(makeRoundCol('final', 2, 1, MH*4, QH));
+  flex.appendChild(makeChamp());
+}
+
+function makeRoundCol(cls, r, count, spacing, totalH) {
+  const col = el('div','r-col '+cls);
+  col.style.cssText = `height:${totalH}px;display:flex;flex-direction:column;justify-content:space-around;`;
+  for (let m=0; m<count; m++) col.appendChild(makeMatchup(r,m));
+  return col;
+}
+function makeMatchup(r, m) {
+  const wrap = el('div','matchup');
+  const lbl  = el('div','game-name'); lbl.textContent = GAME_NAMES['r'+r+'m'+m] || '';
+  wrap.appendChild(lbl);
+  const [s0,s1] = getSeeds(r,m), w = P[r][m];
+  wrap.appendChild(makeSlot(r,m,s0,w,true));
+  wrap.appendChild(makeSlot(r,m,s1,w,false));
+  return wrap;
+}
+function makeSlot(r, m, seed, winner, isTop) {
+  const div = el('div','slot '+(isTop?'top':'bot'));
+  if (!seed) {
+    div.classList.add('tbd');
+    const t=el('span','tbd-text'); t.textContent='TBD'; div.appendChild(t);
+  } else {
+    div.classList.add(READ_ONLY ? 'readonly' : 'active');
+    if (!READ_ONLY) div.addEventListener('click', () => pick(r,m,seed));
+    if (winner===seed)       div.classList.add('win');
+    else if (winner!==null)  div.classList.add('lose');
+    const num=el('span','snum');  num.textContent=seed;
+    const nm=el('span','sname');  nm.textContent=teamName(seed);
+    div.appendChild(num); div.appendChild(nm);
+  }
+  return div;
+}
+function makeConnector(count, spacing, totalH, w) {
+  const col = el('div','conn-col');
+  col.style.cssText = `width:${w}px;height:${totalH}px;flex-shrink:0;`;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('width',w); svg.setAttribute('height',totalH);
+  for (let i=0; i<count; i+=2) {
+    const y1=(i+0.5)*spacing, y2=(i+1.5)*spacing, ym=(y1+y2)/2;
+    svgLine(svg,0,y1,w/2,y1); svgLine(svg,0,y2,w/2,y2);
+    svgLine(svg,w/2,y1,w/2,y2); svgLine(svg,w/2,ym,w,ym);
+  }
+  col.appendChild(svg); return col;
+}
+function makeChamp() {
+  const col=el('div','champ-col'), w=P[2][0];
+  if (w) {
+    const trophy=el('div','champ-trophy'); trophy.textContent='🏆';
+    const lbl=el('div','champ-label'); lbl.textContent='National Champion';
+    const box=el('div','champ-box');
+    const cs=el('div','cs'); cs.textContent='Seed #'+w;
+    const cn=el('div','cn'); cn.textContent=teamName(w);
+    box.appendChild(cs); box.appendChild(cn);
+    col.appendChild(trophy); col.appendChild(lbl); col.appendChild(box);
+  } else {
+    const emp=el('div','champ-empty');
+    const icon=el('div','ce-icon'); icon.textContent='🏆';
+    const txt=el('div','ce-txt'); txt.textContent='National\nChampion';
+    emp.appendChild(icon); emp.appendChild(txt); col.appendChild(emp);
+  }
+  return col;
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────
+function el(tag,cls){const d=document.createElement(tag);if(cls)d.className=cls;return d;}
+function svgLine(svg,x1,y1,x2,y2){
+  const l=document.createElementNS('http://www.w3.org/2000/svg','line');
+  l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);
+  l.setAttribute('stroke','#30363d');l.setAttribute('stroke-width','2');
+  svg.appendChild(l);
+}
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+// ── ENCODE / DECODE ───────────────────────────────────────────────────────
+// Compact format: "owner|ro|t1,t2,t3,t4,t5,t6,t7,t8|p0a,p0b,p0c,p0d|p1a,p1b|p2a"
+// Teams are pipe-delimited, picks are comma-delimited seed numbers (0=null)
+function encode(ro) {
+  const teams = [1,2,3,4,5,6,7,8].map(s => (T[s]||'Team '+s).replace(/[|,]/g,''));
+  const p0    = P[0].map(v=>v??0).join(',');
+  const p1    = P[1].map(v=>v??0).join(',');
+  const p2    = (P[2][0]??0).toString();
+  const raw   = [OWNER.replace(/[|]/g,''), ro?1:0, teams.join('|'), p0, p1, p2].join('~');
+  return btoa(unescape(encodeURIComponent(raw))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+}
+function decode(str) {
+  try {
+    // handle both old JSON format and new compact format
+    const padded = str.replace(/-/g,'+').replace(/_/g,'/');
+    const raw    = decodeURIComponent(escape(atob(padded + '==='.slice((padded.length+3)%4 || 4))));
+    if (raw.startsWith('{')) {
+      // legacy JSON fallback
+      const s = JSON.parse(raw);
+      if(s.t) T=s.t; if(s.p) P=s.p;
+      OWNER=s.o||''; READ_ONLY=s.r===1;
+      return true;
+    }
+    const parts = raw.split('~');
+    if (parts.length < 6) return false;
+    const [owner, ro, teamsStr, p0str, p1str, p2str] = parts;
+    OWNER     = owner;
+    READ_ONLY = ro === '1';
+    const tArr = teamsStr.split('|');
+    [1,2,3,4,5,6,7,8].forEach((s,i) => { T[s] = tArr[i] || 'Team '+s; });
+    const parseN = v => { const n=parseInt(v); return (n && n>0) ? n : null; };
+    const p0 = p0str.split(',').map(parseN);
+    const p1 = p1str.split(',').map(parseN);
+    P = { 0:p0, 1:p1, 2:[parseN(p2str)] };
+    return true;
+  } catch(e){ return false; }
+}
+function persist() {
+  try { sessionStorage.setItem('ffcl', encode(false)); } catch(e){}
+  try { if(window.location.protocol!=='about:') window.location.hash=encode(false); } catch(e){}
+}
+
+// ── SHARE MODAL ───────────────────────────────────────────────────────────
+function openShareModal() {
+  // Check if bracket is complete (champion must be selected)
+  if (!P[2][0]) {
+    showToast('Please complete your bracket first!');
+    return;
+  }
+  
+  const nameInput = document.getElementById('sharer-name');
+  nameInput.value = OWNER || '';
+  document.getElementById('modal-share').classList.add('open');
+  setTimeout(() => nameInput.focus(), 100);
+}
+function closeShareModal() {
+  document.getElementById('modal-share').classList.remove('open');
+  document.getElementById('capture-status').style.display = 'none';
+}
+async function copyAsImage() {
+  const statusEl = document.getElementById('capture-status');
+  const btnCopy = document.getElementById('btn-copy-image');
+  const nameInput = document.getElementById('sharer-name');
+  const name = nameInput.value.trim();
+  
+  // Validate name
+  if (!name) {
+    nameInput.style.borderColor = '#da3633';
+    nameInput.placeholder = 'Name is required!';
+    nameInput.focus();
+    setTimeout(() => {
+      nameInput.style.borderColor = '';
+      nameInput.placeholder = 'e.g. Kileoz';
+    }, 2000);
+    return;
+  }
+  
+  // Show capturing status
+  statusEl.style.display = 'block';
+  btnCopy.disabled = true;
+  btnCopy.textContent = '📸 Capturing...';
+  
+  try {
+    // Show owner name banner
+    document.getElementById('owner-name').textContent = name;
+    document.getElementById('bracket-owner').style.display = 'block';
+    
+    // Hide controls temporarily
+    const controlsEl = document.getElementById('edit-controls');
+    const scrollNoteEl = document.querySelector('.scroll-note');
+    const originalControlsDisplay = controlsEl.style.display;
+    const originalScrollDisplay = scrollNoteEl.style.display;
+    controlsEl.style.display = 'none';
+    scrollNoteEl.style.display = 'none';
+    
+    // Wait for DOM update
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Get elements to capture
+    const headerEl = document.querySelector('header');
+    const ownerEl = document.getElementById('bracket-owner');
+    const bracketWrapEl = document.querySelector('.b-wrap');
+    
+    // Create a temporary container
+    const tempContainer = document.createElement('div');
+    tempContainer.style.cssText = 'background: #0d1117; padding: 0; width: max-content;';
+    
+    // Clone elements
+    const headerClone = headerEl.cloneNode(true);
+    const ownerClone = ownerEl.cloneNode(true);
+    const bracketClone = bracketWrapEl.cloneNode(true);
+    
+    tempContainer.appendChild(headerClone);
+    tempContainer.appendChild(ownerClone);
+    tempContainer.appendChild(bracketClone);
+    document.body.appendChild(tempContainer);
+    
+    // Use html2canvas with proper sizing to avoid clipping
+    const canvas = await html2canvas(tempContainer, {
+      backgroundColor: '#0d1117',
+      scale: 2,
+      logging: false,
+      width: tempContainer.scrollWidth + 40, // Add padding to prevent clipping
+      height: tempContainer.scrollHeight + 40,
+      x: -20, // Center the content
+      y: -20
+    });
+    
+    // Clean up
+    document.body.removeChild(tempContainer);
+    if (!READ_ONLY) {
+      document.getElementById('bracket-owner').style.display = 'none';
+    }
+    controlsEl.style.display = originalControlsDisplay;
+    scrollNoteEl.style.display = originalScrollDisplay;
+    
+    // Convert to data URL and download
+    const dataUrl = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = name.toLowerCase().replace(/\s+/g, '-') + '-bracket.png';
+    link.href = dataUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showToast('Bracket image downloaded!');
+    closeShareModal();
+    btnCopy.disabled = false;
+    btnCopy.textContent = '💾 Download as Image';
+    
+  } catch (err) {
+    console.error('Capture error:', err);
+    if (!READ_ONLY) {
+      document.getElementById('bracket-owner').style.display = 'none';
+    }
+    showToast('Error capturing bracket');
+    btnCopy.disabled = false;
+    btnCopy.textContent = '💾 Download as Image';
+  }
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  let loaded = false;
+  const hash = window.location.hash.slice(1);
+  if (hash && decode(hash)) loaded = true;
+  if (!loaded) {
+    try {
+      const saved = sessionStorage.getItem('ffcl');
+      if (saved && decode(saved)) { READ_ONLY=false; loaded=true; }
+    } catch(e){}
+  }
+  if (loaded) {
+    for(let s=1;s<=8;s++){const inp=document.getElementById('t'+s);if(inp)inp.value=T[s]||'';}
+    render();
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key==='Enter') {
+    if (document.getElementById('setup').style.display !== 'none') { launch(); return; }
+    if (document.getElementById('modal-share').classList.contains('open')) {
+      copyAsImage();
+    }
+  }
+});
+</script>
+</body>
+</html>
